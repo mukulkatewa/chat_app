@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "./AuthContext";
 import toast from "react-hot-toast";
 
@@ -11,6 +11,12 @@ export const ChatProvider = ({ children }) => {
     const [unseenMessages, setUnseenMessages] = useState({});
 
     const { socket, axios, authUser } = useContext(AuthContext);
+
+    const selectedUserRef = useRef(null);
+
+    useEffect(() => {
+        selectedUserRef.current = selectedUser?._id || null;
+    }, [selectedUser]);
 
     // Get all users
     const getUsers = async () => {
@@ -58,7 +64,12 @@ export const ChatProvider = ({ children }) => {
         socket.emit("addUser", authUser._id);
 
         const handleNewMessage = (newMessage) => {
-            if (selectedUser && newMessage.senderId === selectedUser._id) {
+            const selectedId = selectedUserRef.current;
+
+            if (
+                selectedId &&
+                (newMessage.senderId === selectedId || newMessage.receiverId === selectedId)
+            ) {
                 newMessage.seen = true;
                 setMessages((prevMessages) => [...prevMessages, newMessage]);
                 axios.put(`/api/messages/mark/${newMessage._id}`);
@@ -78,7 +89,7 @@ export const ChatProvider = ({ children }) => {
         return () => {
             socket.off("newMessage", handleNewMessage);
         };
-    }, [socket, authUser, selectedUser]);
+    }, [socket, authUser]);
 
     const value = {
         messages,
